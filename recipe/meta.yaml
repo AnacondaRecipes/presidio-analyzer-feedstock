@@ -10,7 +10,7 @@ source:
   # separately from the upstream monorepo at the matching tag.
   - url: https://pypi.org/packages/source/{{ name[0] }}/{{ name }}/presidio_analyzer-{{ version }}.tar.gz
     sha256: 51f27bacf199fb9777ade9552c0f0111e00a1d73cfe2d4797fc05c998de1e0b6
-  - url: https://raw.githubusercontent.com/data-privacy-stack/presidio/{{ version }}/LICENSE
+  - url: https://raw.githubusercontent.com/data-privacy-stack/presidio/refs/tags/{{ version }}/LICENSE
     sha256: f3e86ee59a49bcfb0d9a9547484d55224ea7b2d04f95b1947b4d18d17f6de535
     fn: LICENSE
 
@@ -56,9 +56,10 @@ requirements:
     # [azure-ai-language]
     - azure-ai-textanalytics >=5.4.0,<6.0.0
     - azure-core >=1.39.0,<2.0.0
-    # [ahds] and [langextract] both bound azure-identity (>=1.25.3 / >=1.18.0);
-    # the looser bound is used so the [langextract] extra is not over-constrained.
-    - azure-identity >=1.18.0,<2.0.0
+    # [ahds] bounds azure-identity >=1.25.3, [langextract] >=1.18.0.
+    # run_constrained cannot split per-extra, so the stricter bound is used:
+    # the looser one would let an [ahds] install resolve a broken azure-identity.
+    - azure-identity >=1.25.3,<2.0.0
     - azure-health-deidentification >=1.1.0b1,<2.0.0
     # [gliner]
     - gliner >=0.2.26,<1.0.0
