@@ -1,63 +1,103 @@
 {% set name = "presidio-analyzer" %}
-{% set version = "2.2.360" %}
+{% set version = "2.2.364" %}
 
 package:
-  name: {{ name|lower }}
+  name: {{ name }}
   version: {{ version }}
 
 source:
-  url: https://github.com/microsoft/presidio/archive/refs/tags/{{ version }}.tar.gz
-  sha256: 47542f1bf1ff6a6fb0cc4786d4e6001573b35da7bf92d872d863dc912d7428d2
+  # The PyPI sdist ships no LICENSE file, so the MIT text is fetched
+  # separately from the upstream monorepo at the matching tag.
+  - url: https://pypi.org/packages/source/{{ name[0] }}/{{ name }}/presidio_analyzer-{{ version }}.tar.gz
+    sha256: 51f27bacf199fb9777ade9552c0f0111e00a1d73cfe2d4797fc05c998de1e0b6
+  - url: https://raw.githubusercontent.com/data-privacy-stack/presidio/refs/tags/{{ version }}/LICENSE
+    sha256: f3e86ee59a49bcfb0d9a9547484d55224ea7b2d04f95b1947b4d18d17f6de535
+    fn: LICENSE
 
 build:
-  noarch: python
-  script: cd {{ name }} && {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
   number: 0
+  # upstream pyproject.toml: requires-python = ">=3.10,<3.15"
+  skip: true  # [py<310 or py>314]
+  script: {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
 
 requirements:
   host:
-    - python {{ python_min }}
+    - python
     - pip
     - poetry-core
   run:
-    - python >={{ python_min }},<4
-    - spacy >=3.4.4,<4.0.0,!=3.7.0
-    - regex
-    - tldextract
-    - pyyaml
-    - phonenumbers >=8.12,<9.0.0
-  run_constrained: # Optional packages
-    - flask >=1.1
-    - spacy_huggingface_pipelines
-    - stanza
-    - spacy_stanza
-    - azure-ai-textanalytics
-    - azure-core
-    - gliner >=0.2.13,<1.0.0
-    - transformers
-    - huggingface_hub
-    - gunicorn
-    - onnxruntime-gpu >=1.19
+    - python
+    - click >=8.1.0,<9.0.0
+    - numpy >=1.19.0,<2.5.0
+    - phonenumbers >=9.0.28,<10.0.0
+    - pydantic >=2.12.5,<3.0.0
+    - pyyaml >=6.0.3,<7.0.0
+    - regex >=2023.0.0
+    # Upstream additionally excludes the broken spacy 3.8.14 on py3.14 only.
+    - spacy >=3.4.4,<4.0.0,!=3.7.0  # [py<314]
+    - spacy >=3.4.4,<4.0.0,!=3.7.0,!=3.8.14  # [py>=314]
+    - tldextract >=5.3.1,<6.0.0
+  run_constrained:
+    # Bounded entries from upstream [project.optional-dependencies]. The
+    # unbounded ones (the [gliner] extra's transformers / huggingface_hub)
+    # are already covered by the bounded [transformers] entries below, and
+    # a bare unbounded run_constrained entry would be a no-op.
+    # [server]
+    - flask >=1.1,<4.0.0
+    - gunicorn >=20.0.0,<26.0.0  # [not win]
+    - waitress >=2.0.0,<4.0.0  # [win]
+    # [transformers]
+    - transformers >=4.0.0,<6.0.0
+    - accelerate >=0.20.0,<2.0.0
+    - huggingface_hub >=0.20.0,<2.0.0
+    - spacy_huggingface_pipelines >=0.0.4,<1.0.0
+    # [stanza]
+    - stanza >=1.11.1,<2.0.0
+    # [azure-ai-language]
+    - azure-ai-textanalytics >=5.4.0,<6.0.0
+    - azure-core >=1.39.0,<2.0.0
+    # [ahds] bounds azure-identity >=1.25.3, [langextract] >=1.18.0.
+    # run_constrained cannot split per-extra, so the stricter bound is used:
+    # the looser one would let an [ahds] install resolve a broken azure-identity.
+    - azure-identity >=1.25.3,<2.0.0
+    - azure-health-deidentification >=1.1.0b1,<2.0.0
+    # [gliner]
+    - gliner >=0.2.26,<1.0.0
+    - onnxruntime >=1.19,<1.24.1  # [py==310]
+    - onnxruntime >=1.19  # [py>310]
+    # [langextract]
+    - langextract >=1.0.0,<2.0.0
+    - openai >=1.50.0,<3.0.0
+    - more-itertools >=10.0.0,<12.0.0
+    - jinja2 >=3.0.0,<4.0.0
 
 test:
   imports:
     - presidio_analyzer
+    - presidio_analyzer.nlp_engine
+    - presidio_analyzer.predefined_recognizers
   requires:
-    - python {{ python_min }}
     - pip
   commands:
     - pip list
     - pip check
 
 about:
-  home: https://github.com/microsoft/presidio
-  summary: 'Presidio Analyzer package'
-  description: |
-    Presidio Analyzer package.
+  home: https://github.com/data-privacy-stack/presidio
   license: MIT
+  license_family: MIT
   license_file: LICENSE
-  doc_url: https://microsoft.github.io/presidio
-  dev_url: https://github.com/microsoft/presidio
+  summary: Presidio Analyzer package
+  description: |
+    The Presidio analyzer is a Python based service for detecting PII entities
+    in text. During analysis it runs a set of different PII Recognizers, each
+    one in charge of detecting one or more PII entities using different
+    mechanisms. Presidio analyzer comes with a set of predefined recognizers,
+    but can easily be extended with other types of custom recognizers.
+    Predefined and custom recognizers leverage regex, Named Entity Recognition
+    and other types of logic to detect PII in unstructured text.
+  doc_url: https://presidio.dataprivacystack.org
+  dev_url: https://github.com/data-privacy-stack/presidio
 
 extra:
   recipe-maintainers:
